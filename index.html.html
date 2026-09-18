@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Anki Vocabulary Form</title>
+<style>
+*{box-sizing:border-box}
+body{
+  font-family:Arial,"Noto Sans Thai","Noto Sans",sans-serif;
+  background:#f4f6f8;margin:0;padding:20px;color:#333;
+  -webkit-text-size-adjust:100%;
+}
+.container{max-width:1100px;margin:auto}
+h1{text-align:center;margin-bottom:10px}
+.subtitle{text-align:center;color:#666;margin-bottom:25px}
+.top-bar,.bottom-buttons,.vocab-card,.preview{
+  background:white;border-radius:12px;padding:15px;
+  box-shadow:0 2px 8px rgba(0,0,0,.08);
+}
+.top-bar{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:20px}
+.counter{font-size:18px;font-weight:bold}
+button{
+  border:none;border-radius:7px;padding:10px 16px;font-size:15px;
+  cursor:pointer;margin:3px;min-height:44px;touch-action:manipulation;
+}
+.add-btn{background:#2196F3;color:white}.save-btn{background:#4CAF50;color:white}
+.status-buttons{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 4px}
+.status-btn{background:#eee;color:#444;border:1px solid #ccc}
+.status-btn.active-known{background:#4CAF50;color:white;border-color:#4CAF50}
+.status-btn.active-unknown{background:#e53935;color:white;border-color:#e53935}
+.memory-status{font-size:13px;font-weight:bold;margin-left:6px}
+.load-btn{background:#673AB7;color:white}.export-btn{background:#00897B;color:white}
+.preview-btn{background:#FF9800;color:white}.clear-btn,.delete-btn{background:#e53935;color:white}
+.vocab-card{margin-bottom:25px;padding:22px}
+.card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:15px}
+.card-header h2{margin:0;font-size:20px}
+label{display:block;font-weight:bold;margin-top:12px;margin-bottom:5px}
+.required{color:red}
+input,textarea{
+  width:100%;padding:10px;border:1px solid #ccc;border-radius:6px;
+  font-size:16px;font-family:inherit;
+}
+textarea{min-height:75px;resize:vertical}
+input:focus,textarea:focus{outline:none;border-color:#2196F3;box-shadow:0 0 0 2px rgba(33,150,243,.1)}
+.section{border:1px solid #ddd;border-radius:8px;padding:15px;margin-top:18px}
+.section h3{margin-top:0;margin-bottom:10px}
+.bottom-buttons{text-align:center;margin:25px 0}
+.preview{margin-top:25px}
+.preview-card{border-bottom:1px solid #ddd;padding-bottom:20px;margin-bottom:20px;line-height:1.7}
+#saveStatus{color:#4CAF50;font-weight:bold;margin-left:10px}
+@media(max-width:700px){
+ body{padding:max(10px,env(safe-area-inset-top)) max(10px,env(safe-area-inset-right))
+              max(10px,env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-left))}
+ h1{font-size:24px}.vocab-card{padding:14px}.section{padding:12px}
+ .top-bar{flex-direction:column;align-items:stretch}
+ .top-bar>div:last-child{display:flex;flex-wrap:wrap;width:100%}
+ .top-bar button{flex:1 1 45%}
+ .bottom-buttons{position:sticky;bottom:0;z-index:10;padding-bottom:calc(15px + env(safe-area-inset-bottom))}
+}
+</style>
+</head>
+<body>
+<div class="container">
+<h1>📚 Anki Vocabulary Form</h1>
+<div class="subtitle">Japanese 🇯🇵 + Chinese 🇨🇳 + English 🇬🇧 + Thai 🇹🇭</div>
+
+<div class="top-bar">
+  <div>
+    <span class="counter">📚 จำนวนคำศัพท์: <span id="vocabCount">0</span></span>
+    <span id="saveStatus"></span>
+    <div style="font-size:12px;color:#777;margin-top:6px">💡 ข้อมูลที่บันทึกจะเก็บไว้ในเบราว์เซอร์เครื่องนี้</div>
+  </div>
+  <div>
+    <button class="add-btn" onclick="addVocab()">＋ เพิ่มคำศัพท์</button>
+    <button class="save-btn" onclick="saveData()">💾 บันทึกข้อมูล</button>
+    <button class="load-btn" onclick="loadData(true)">📂 โหลดข้อมูล</button>
+<button class="preview-btn" onclick="filterReview()">🔄 ทบทวนคำที่ยังไม่ได้</button>
+<button class="status-btn" onclick="showAllVocab()">📚 แสดงทั้งหมด</button>
+  </div>
+</div>
+
+<div id="vocabContainer"></div>
+
+<div class="bottom-buttons">
+  <button class="add-btn" onclick="addVocab()">＋ เพิ่มคำศัพท์</button>
+  <button class="export-btn" onclick="generateCSV()">📥 Export CSV</button>
+  <button class="preview-btn" onclick="showPreview()">👀 Preview</button>
+  <button class="clear-btn" onclick="clearAll()">🧹 ล้างทั้งหมด</button>
+</div>
+
+<div class="preview">
+<h2>👀 Preview</h2>
+<div id="previewArea">ยังไม่มีข้อมูล</div>
+</div>
+
+<div class="preview" style="margin-top:20px">
+<h2>🔄 ทบทวนคำศัพท์</h2>
+<div id="reviewArea">กด “ทบทวนคำที่ยังไม่ได้” เพื่อแสดงคำศัพท์ที่ยังจำไม่ได้</div>
+</div>
+</div>
+
+<script>
+let vocabCount=0;
+
+function addVocab(data={}){
+  vocabCount++;
+  const card=document.createElement("div");
+  card.className="vocab-card";
+  card.dataset.id=vocabCount;
+  card.dataset.memoryStatus=data.memoryStatus||"";
+  card.innerHTML=`
+    <div class="card-header">
+      <h2>📖 คำศัพท์ที่ <span class="number">${vocabCount}</span></h2>
+      <button class="delete-btn" onclick="deleteVocab(this)">🗑 ลบ</button>
+    </div>
+
+    <div class="status-buttons">
+      <button type="button" class="status-btn known-btn" onclick="setMemoryStatus(this,'known')">✓ จำได้</button>
+      <button type="button" class="status-btn unknown-btn" onclick="setMemoryStatus(this,'unknown')">✗ ยังไม่ได้</button>
+      <span class="memory-status">สถานะ: ยังไม่ได้ระบุ</span>
+    </div>
+
+    <label>คำศัพท์ <span class="required">*</span></label>
+    <input class="word" placeholder="เช่น exact / exacting / お祈り" value="${escapeAttribute(data.word||'')}">
+
+    <label>คำอ่าน / Pronunciation</label>
+    <input class="pronunciation" placeholder="เช่น いのり / inori" value="${escapeAttribute(data.pronunciation||'')}">
+
+    <div class="section">
+      <h3>🇯🇵 日本語</h3>
+      <label>① ความหมาย</label>
+      <textarea class="jpMeaning" placeholder="ความหมายภาษาญี่ปุ่น">${data.jpMeaning||''}</textarea>
+      <label>② วิธีใช้</label>
+      <textarea class="jpUsage" placeholder="วิธีใช้ / บริบท">${data.jpUsage||''}</textarea>
+      <label>③ ตัวอย่างประโยค</label>
+      <textarea class="jpExample" placeholder="ตัวอย่างประโยคภาษาญี่ปุ่น">${data.jpExample||''}</textarea>
+      <label>คำแปลภาษาไทย</label>
+      <textarea class="jpThai" placeholder="คำแปลภาษาไทย">${data.jpThai||''}</textarea>
+    </div>
+
+    <div class="section">
+      <h3>🇨🇳 中文</h3>
+      <label>① 意思</label>
+      <textarea class="cnMeaning" placeholder="ความหมายภาษาจีน">${data.cnMeaning||''}</textarea>
+      <label>② 用法</label>
+      <textarea class="cnUsage" placeholder="วิธีใช้">${data.cnUsage||''}</textarea>
+      <label>③ 例句</label>
+      <textarea class="cnExample" placeholder="ตัวอย่างประโยคภาษาจีน">${data.cnExample||''}</textarea>
+      <label>คำแปลภาษาไทย</label>
+      <textarea class="cnThai" placeholder="คำแปลภาษาไทย">${data.cnThai||''}</textarea>
+    </div>
+
+    <div class="section">
+      <h3>🇬🇧 English</h3>
+      <label>① Meaning</label>
+      <textarea class="enMeaning" placeholder="Meaning">${data.enMeaning||''}</textarea>
+      <label>② Usage</label>
+      <textarea class="enUsage" placeholder="Usage">${data.enUsage||''}</textarea>
+      <label>③ Example</label>
+      <textarea class="enExample" placeholder="Example sentence">${data.enExample||''}</textarea>
+      <label>คำแปลภาษาไทย</label>
+      <textarea class="enThai" placeholder="คำแปลภาษาไทย">${data.enThai||''}</textarea>
+    </div>
+
+    <div class="section">
+      <h3>📝 หมายเหตุ</h3>
+      <textarea class="note" placeholder="เช่น exact = แม่นยำ / exacting = ละเอียดพิถีพิถัน">${data.note||''}</textarea>
+    </div>
+  `;
+  document.getElementById("vocabContainer").appendChild(card);
+  if(data.memoryStatus) applyMemoryStatus(card,data.memoryStatus);
+  updateCounter();
+}
+
+function setMemoryStatus(button,status){
+  const card=button.closest(".vocab-card");
+  applyMemoryStatus(card,status);
+}
+function applyMemoryStatus(card,status){
+  card.dataset.memoryStatus=status||"";
+  const known=card.querySelector(".known-btn");
+  const unknown=card.querySelector(".unknown-btn");
+  const label=card.querySelector(".memory-status");
+  known.classList.toggle("active-known",status==="known");
+  unknown.classList.toggle("active-unknown",status==="unknown");
+  label.textContent=status==="known"?"สถานะ: ✓ จำได้":
+                 status==="unknown"?"สถานะ: ✗ ยังไม่ได้":"สถานะ: ยังไม่ได้ระบุ";
+}
+function deleteVocab(button){
+  if(!confirm("ต้องการลบคำศัพท์นี้หรือไม่?")) return;
+  button.closest(".vocab-card").remove();
+  renumberCards(); updateCounter();
+}
+function renumberCards(){
+  document.querySelectorAll(".vocab-card").forEach((card,index)=>{
+    card.querySelector(".number").textContent=index+1;
+  });
+}
+function updateCounter(){
+  document.getElementById("vocabCount").textContent=
+    document.querySelectorAll(".vocab-card").length;
+}
+function getCardData(card){
+  const q=s=>card.querySelector(s).value;
+  return {
+    word:q(".word"), pronunciation:q(".pronunciation"),
+    memoryStatus:card.dataset.memoryStatus||"", 
+    jpMeaning:q(".jpMeaning"),jpUsage:q(".jpUsage"),jpExample:q(".jpExample"),jpThai:q(".jpThai"),
+    cnMeaning:q(".cnMeaning"),cnUsage:q(".cnUsage"),cnExample:q(".cnExample"),cnThai:q(".cnThai"),
+    enMeaning:q(".enMeaning"),enUsage:q(".enUsage"),enExample:q(".enExample"),enThai:q(".enThai"),
+    note:q(".note")
+  };
+}
+function getAllData(){
+  return [...document.querySelectorAll(".vocab-card")].map(getCardData);
+}
+function escapeHTML(text){
+  return String(text).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;").replace(/'/g,"&#039;");
+}
+function escapeAttribute(text){return escapeHTML(text)}
+function createBack(card){
+  const d=getCardData(card);
+  return `
+【日本語】<br>
+① 意味<br>${escapeHTML(d.jpMeaning)}<br><br>
+② 使い方<br>${escapeHTML(d.jpUsage)}<br><br>
+③ 例文<br>${escapeHTML(d.jpExample)}<br>
+${escapeHTML(d.jpThai)}<br><br>
+
+【中文】<br>
+① 意思<br>${escapeHTML(d.cnMeaning)}<br><br>
+② 用法<br>${escapeHTML(d.cnUsage)}<br><br>
+③ 例句<br>${escapeHTML(d.cnExample)}<br>
+${escapeHTML(d.cnThai)}<br><br>
+
+【English】<br>
+① Meaning<br>${escapeHTML(d.enMeaning)}<br><br>
+② Usage<br>${escapeHTML(d.enUsage)}<br><br>
+③ Example<br>${escapeHTML(d.enExample)}<br>
+${escapeHTML(d.enThai)}<br><br>
+
+【หมายเหตุ】<br>${escapeHTML(d.note)}
+`.trim();
+}
+function saveData(){
+  saveDataSilently();
+  document.getElementById("saveStatus").textContent="✓ บันทึกแล้ว";
+  setTimeout(()=>document.getElementById("saveStatus").textContent="",3000);
+  alert("บันทึกข้อมูลเรียบร้อยแล้ว 💾");
+}
+function loadData(showMessage=false){
+  const saved=localStorage.getItem("ankiVocabularyData");
+  if(!saved){if(showMessage) alert("ยังไม่มีข้อมูลที่บันทึกไว้");return}
+  const data=JSON.parse(saved);
+  document.getElementById("vocabContainer").innerHTML="";
+  vocabCount=0; data.forEach(item=>addVocab(item));
+  if(showMessage) alert("โหลดข้อมูลเรียบร้อยแล้ว 📂");
+}
+function csvEscape(value){
+  return '"'+String(value).replace(/"/g,'""')+'"';
+}
+function generateCSV(){
+  const cards=document.querySelectorAll(".vocab-card");
+  if(cards.length===0){alert("กรุณาเพิ่มคำศัพท์ก่อน");return}
+  let csv="\uFEFFFront,Back\n",validCount=0;
+  cards.forEach(card=>{
+    const d=getCardData(card);
+    if(!d.word.trim()) return;
+    csv+=csvEscape(d.word.trim())+","+csvEscape(createBack(card))+"\n";
+    validCount++;
+  });
+  if(validCount===0){alert("กรุณากรอกคำศัพท์อย่างน้อย 1 รายการ");return}
+  const blob=new Blob([csv],{type:"text/csv;charset=utf-8;"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url;a.download="Anki_Vocabulary.csv";
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  alert("Export CSV สำเร็จ 🎉\\n\\nจำนวน "+validCount+" คำศัพท์");
+}
+function filterReview(){
+  const cards=[...document.querySelectorAll(".vocab-card")];
+  const review=cards.filter(card=>(card.dataset.memoryStatus||"")!=="known");
+  const area=document.getElementById("reviewArea");
+  if(review.length===0){
+    area.innerHTML="🎉 ตอนนี้ไม่มีคำศัพท์ที่ต้องทบทวน";
+    return;
+  }
+  area.innerHTML=review.map((card,i)=>{
+    const d=getCardData(card);
+    const status=d.memoryStatus==="unknown"?"✗ ยังไม่ได้":"ยังไม่ได้ระบุ";
+    return `<div class="preview-card">
+      <h3>${i+1}. ${escapeHTML(d.word)}</h3>
+      <div><strong>${status}</strong></div>
+      <div style="margin-top:10px">${createBack(card)}</div>
+      <div class="status-buttons">
+        <button type="button" class="status-btn" onclick="setMemoryStatusAndRefresh(this,'known')">✓ จำได้</button>
+        <button type="button" class="status-btn" onclick="setMemoryStatusAndRefresh(this,'unknown')">✗ ยังไม่ได้</button>
+      </div>
+    </div>`;
+  }).join("");
+}
+function setMemoryStatusAndRefresh(button,status){
+  const word=button.closest(".preview-card").querySelector("h3").textContent.replace(/^\d+\.\s*/,"");
+  const card=[...document.querySelectorAll(".vocab-card")].find(c=>c.querySelector(".word").value===word);
+  if(card) applyMemoryStatus(card,status);
+  filterReview();
+  saveDataSilently();
+}
+function showAllVocab(){
+  document.querySelectorAll(".vocab-card").forEach(card=>card.style.display="");
+}
+function saveDataSilently(){
+  localStorage.setItem("ankiVocabularyData",JSON.stringify(getAllData()));
+}
+function showPreview(){
+  const cards=document.querySelectorAll(".vocab-card");
+  if(cards.length===0){document.getElementById("previewArea").innerHTML="ยังไม่มีข้อมูล";return}
+  let html="";
+  cards.forEach((card,index)=>{
+    const d=getCardData(card);
+    html+=`<div class="preview-card"><h3>${index+1}. ${escapeHTML(d.word)}</h3>
+    <div><strong>${d.memoryStatus==="known"?"✓ จำได้":d.memoryStatus==="unknown"?"✗ ยังไม่ได้":"สถานะ: ยังไม่ได้ระบุ"}</strong></div>
+    <div>${createBack(card)}</div></div>`;
+  });
+  document.getElementById("previewArea").innerHTML=html;
+}
+function clearAll(){
+  if(!confirm("⚠️ ต้องการล้างคำศัพท์ทั้งหมดหรือไม่?\\n\\nข้อมูลบนหน้าจอจะถูกลบ")) return;
+  document.getElementById("vocabContainer").innerHTML="";
+  vocabCount=0;updateCounter();
+  document.getElementById("previewArea").innerHTML="ยังไม่มีข้อมูล";
+  document.getElementById("reviewArea").innerHTML="กด “ทบทวนคำที่ยังไม่ได้” เพื่อแสดงคำศัพท์ที่ยังจำไม่ได้";
+}
+window.addEventListener("beforeunload",()=>{
+  const data=getAllData();
+  if(data.length) localStorage.setItem("ankiVocabularyData",JSON.stringify(data));
+});
+window.onload=()=>{
+  const saved=localStorage.getItem("ankiVocabularyData");
+  if(saved){
+    if(confirm("พบข้อมูลคำศัพท์ที่บันทึกไว้\\n\\nต้องการโหลดข้อมูลเดิมหรือไม่?")) loadData(false);
+    else addVocab();
+  }else addVocab();
+};
+</script>
+</body>
+</html>
